@@ -1,0 +1,9 @@
+"..\Output\STARTUP.obj",
+"..\Output\app.obj",
+"..\Output\driDelay.obj",
+"..\Output\driGpio.obj",
+"..\Output\driLcd12864.obj",
+"..\Output\itrUart.obj",
+"..\Output\pt-os.obj" 
+TO "..\Output\lces" 
+PRINT("..\Temp\lces.m51") RAMSIZE(256) 

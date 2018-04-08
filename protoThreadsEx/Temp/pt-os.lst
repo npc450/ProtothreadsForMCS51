@@ -1,0 +1,84 @@
+C51 COMPILER V9.52.0.0   PT_OS                                                             04/08/2018 19:49:04 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE PT_OS
+OBJECT MODULE PLACED IN ..\Output\pt-os.obj
+COMPILER INVOKED BY: C:\Keil\UV5\C51\BIN\C51.EXE ..\User\OS\pt-os.c BROWSE INCDIR(..\User;..\Library) DEBUG OBJECTEXTEND
+                    - PRINT(..\Temp\pt-os.lst) TABS(2) OBJECT(..\Output\pt-os.obj)
+
+line level    source
+
+   1          #include "all.h"
+   2          
+   3          ClassTask idata OSTasks[TASK_MAX];
+   4          static unsigned char index;
+   5          
+   6          void PT_TaskInit( unsigned char id,
+   7                            int (*taskname)(unsigned char ))
+   8          {
+   9   1        OSTasks[id].task  = taskname;
+  10   1        OSTasks[id].lc    = NULL;
+  11   1        OSTasks[id].tick  = 0;
+  12   1        OSTasks[id].flag  = RUN;
+  13   1        OSTasks[id].id    = id;
+  14   1        OSTasks[id].value = NULL;
+  15   1      }
+  16          
+  17          void osTimerInit(void)  //50毫秒@11.0592MHz
+  18          {
+  19   1        AUXR &= 0x7F; //定时器时钟12T模式
+  20   1        TMOD &= 0xF0; //设置定时器模式
+  21   1        TL0 = 0x00;   //设置定时初值
+  22   1        TH0 = 0x4C;   //设置定时初值
+  23   1        TF0 = 0;      //清除TF0标志
+  24   1        TR0 = 0;      //定时器0关闭计时
+  25   1        ET0 = 1;      //定时器0中断开启
+  26   1      }
+  27          void osTimerTicks(void) interrupt 1
+  28          {
+  29   1      #if OS_TICKS_RELOAD == 1
+                TL0 = 0x00;
+                TH0 = 0x4C;
+              #endif
+  33   1        unsigned char i;
+  34   1        for(i=0; i<TASK_MAX; i++)
+  35   1        {
+  36   2          if(OSTasks[i].tick)
+  37   2          {
+  38   3            (OSTasks[i].tick)--;
+  39   3          }
+  40   2        }
+  41   1      }
+  42          void main(void)
+  43          {
+  44   1        appUserInit();    //用户初始化
+  45   1        osTimerInit();    //初始化时钟节拍
+  46   1        TR0 = 1;      //启动时钟节拍定时器
+  47   1        EA = 1;       //启动总中断
+  48   1        while (1)
+  49   1        {
+  50   2          for(index=0; index<TASK_MAX; index++)
+  51   2          {//轮询任务链表
+  52   3            if((OSTasks[index].flag == RUN) && (OSTasks[index].tick == 0))
+  53   3            {//如果任务处于运行态
+  54   4              (OSTasks[index].task)(index);
+C51 COMPILER V9.52.0.0   PT_OS                                                             04/08/2018 19:49:04 PAGE 2   
+
+  55   4            }
+  56   3          }
+  57   2        }
+  58   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    232    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =     36    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

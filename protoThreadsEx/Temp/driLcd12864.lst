@@ -1,0 +1,506 @@
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE DRILCD12864
+OBJECT MODULE PLACED IN ..\Output\driLcd12864.obj
+COMPILER INVOKED BY: C:\Keil\UV5\C51\BIN\C51.EXE ..\User\DRIVER\driLcd12864.c BROWSE INCDIR(..\User;..\Library) DEBUG OB
+                    -JECTEXTEND PRINT(..\Temp\driLcd12864.lst) TABS(2) OBJECT(..\Output\driLcd12864.obj)
+
+line level    source
+
+   1          #include "all.h"
+   2          
+   3          unsigned char LCD_CheckBusy(void)
+   4          {
+   5   1        unsigned char Busy;
+   6   1        LCDData=0xff;
+   7   1        RS=0;
+   8   1        RW=1;
+   9   1        E=1;
+  10   1        _nop_(); 
+  11   1        Busy=LCDData&0x80;
+  12   1        E=0;
+  13   1        return Busy;
+  14   1      }
+  15          
+  16          /*********************************
+  17          向LCD写入字节数据
+  18          **********************************/
+  19          void LCD_WriteData(unsigned char Data)
+  20          {  
+  21   1        while(LCD_CheckBusy());
+  22   1        RS=1;
+  23   1        RW=0;
+  24   1        E=0;
+  25   1        _nop_();  
+  26   1        _nop_(); 
+  27   1        LCDData=Data;
+  28   1        E=1;
+  29   1        _nop_();
+  30   1        _nop_();
+  31   1        E=0;
+  32   1      }
+  33          
+  34          /***********************************
+  35          从LCD中读出数据
+  36          ************************************/
+  37          unsigned char LCD_ReadData(void)
+  38          {
+  39   1        unsigned char Temp;
+  40   1        while(LCD_CheckBusy());
+  41   1        LCDData=0xff;
+  42   1        RS=1;
+  43   1        RW=1;
+  44   1        E=1;
+  45   1        _nop_();
+  46   1        Temp=LCDData;
+  47   1        E=0;
+  48   1        return Temp;
+  49   1      }
+  50          
+  51          /*************************************
+  52          想LCD中写入指令代码
+  53          **************************************/
+  54          void LCD_WriteCmd(unsigned char CmdCode)
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 2   
+
+  55          {  
+  56   1        while(LCD_CheckBusy());
+  57   1          RS=0;
+  58   1          RW=0;
+  59   1          E=0;
+  60   1          _nop_();  
+  61   1          _nop_();
+  62   1          LCDData=CmdCode;
+  63   1          _nop_(); 
+  64   1          _nop_();
+  65   1          E=1;
+  66   1          _nop_();  
+  67   1          _nop_();
+  68   1          E=0;
+  69   1      }
+  70          
+  71          /*************************************
+  72          向LCD指定起始位置写入一个字符串
+  73          *************************************/
+  74          void LCD_WriteStr(unsigned char x,unsigned char y,unsigned char *str)
+  75          {
+  76   1        if((y>3)||(x>7))
+  77   1          return;//如果指定位置不在显示区域内，则不做任何写入直接返回
+  78   1        //EA=0;
+  79   1        switch(y)
+  80   1        {
+  81   2          case 0:
+  82   2              LCD_WriteCmd(0x80+x);
+  83   2              break;
+  84   2          case 1:
+  85   2              LCD_WriteCmd(0x90+x);
+  86   2              break;        
+  87   2          case 2:
+  88   2              LCD_WriteCmd(0x88+x);
+  89   2              break;
+  90   2          case 3:
+  91   2              LCD_WriteCmd(0x98+x);
+  92   2              break;
+  93   2        }
+  94   1        while(*str>0)
+  95   1        {  
+  96   2          LCD_WriteData(*str);
+  97   2          str++;     
+  98   2        }
+  99   1      }
+ 100          /****************************************
+ 101                  LCD初始化
+ 102          *****************************************/
+ 103          void LCD_InitStr(void)
+ 104          {  
+ 105   1        LCD_WriteCmd(0x30);       //选择基本指令集
+ 106   1        LCD_WriteCmd(0x0c);       //开显示(无游标、不反白)
+ 107   1        LCD_WriteCmd(0x01);       //清除显示，并且设定地址指针为00H
+ 108   1        LCD_WriteCmd(0x06);       //指定在资料的读取及写入时，设定游标的移动方向及指定显示的移位
+ 109   1      }
+ 110          /*****************************************
+ 111          清除LCD全屏，如果清除模式Mode为0，则为全屏清除为颜色0（无任何显示）
+ 112          否则为全屏清除为颜色1(全屏填充显示)
+ 113          ******************************************/
+ 114          void LCD_InitPic(unsigned char mode)
+ 115          {
+ 116   1        unsigned char x,y,ii;
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 3   
+
+ 117   1        unsigned char Temp;
+ 118   1        if(mode%2==0)
+ 119   1          Temp=0x00;
+ 120   1        else
+ 121   1          Temp=0xff;
+ 122   1        LCD_WriteCmd(0x36);//扩充指令 绘图显示
+ 123   1        for(ii=0;ii<9;ii+=8)   
+ 124   1          for(y=0;y<0x20;y++)     
+ 125   1            for(x=0;x<8;x++)
+ 126   1            {   
+ 127   2              //EA=0;
+ 128   2              LCD_WriteCmd(y+0x80);        //行地址
+ 129   2              LCD_WriteCmd(x+0x80+ii);     //列地址     
+ 130   2              LCD_WriteData(Temp); //写数据 D15－D8 
+ 131   2              LCD_WriteData(Temp); //写数据 D7－D0 
+ 132   2              //EA=1;
+ 133   2            }
+ 134   1        LCD_WriteCmd(0x30);
+ 135   1      }
+ 136          /*******************************************
+ 137          向LCD写图片
+ 138          ********************************************/
+ 139          void LCD_WriteBmp(unsigned char *puts)
+ 140          {
+ 141   1           unsigned int x1=0,x2;
+ 142   1           unsigned char i,j;
+ 143   1           LCD_WriteCmd(0x34);      //8Bit扩充指令集,即使是36H也要写两次 使RE位=1
+ 144   1           LCD_WriteCmd(0x36);      //绘图ON,基本指令集里面36H不能开绘图  绘图显示
+ 145   1           for(i=0;i<32;i++)        //12864实际为256x32
+ 146   1           {
+ 147   2             LCD_WriteCmd(0x80|i);  //行位置
+ 148   2             LCD_WriteCmd(0x80);    //列位置
+ 149   2             x2=x1;                 //记住
+ 150   2             for(j=0;j<32;j++)      //256/8=32 byte
+ 151   2             {                      //列位置每行自动增加
+ 152   3                  if(j/16)          //写128列开始到255列
+ 153   3              {
+ 154   4                   LCD_WriteData(puts[x2+512]);
+ 155   4                 x2++;   
+ 156   4              }
+ 157   3                  else            //写0列开始到127列
+ 158   3              {
+ 159   4                   LCD_WriteData(puts[x1]);
+ 160   4                   x1++;  
+ 161   4              }
+ 162   3             }    
+ 163   2              
+ 164   2           }
+ 165   1      }
+ 166          /**************************************
+ 167          为加速逻辑运算而设置的掩码表，这是以牺牲空间而换取时间的办法
+ 168          ***************************************/
+ 169          unsigned int code LCDMaskTab[]={0x0001,0x0002,0x0004,0x0008,0x0010,0x0020,0x0040,0x0080,
+ 170                                          0x0100,0x0200,0x0400,0x0800,0x1000,0x2000,0x4000,0x8000};
+ 171          /***************************************
+ 172          向LCD指定坐标写入一个象素,象素颜色有两种，
+ 173          0代表白（无显示），1代表黑（有显示）
+ 174          ****************************************/
+ 175          void LCD_PutPixel(unsigned char x,unsigned char y,unsigned char color)
+ 176          {
+ 177   1        unsigned char z,w;
+ 178   1        unsigned int Temp;
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 4   
+
+ 179   1        if(x>=128||y>=64)  //128行64列
+ 180   1          return;
+ 181   1        color=color%2;
+ 182   1        w=15-x%16;           //确定对这个字的第多少位进行操作
+ 183   1        x=x/16;              //确定为一行上的第几字
+ 184   1      
+ 185   1        if(y<32)             //如果为上页
+ 186   1          z=0x80;
+ 187   1        else                 //否则如果为下页
+ 188   1          z=0x88;
+ 189   1      
+ 190   1        y=y%32;
+ 191   1        LCD_WriteCmd(0x36);
+ 192   1        LCD_WriteCmd(y+0x80); //行地址
+ 193   1        LCD_WriteCmd(x+z);    //列地址 
+ 194   1        Temp=LCD_ReadData();//先空读一次
+ 195   1        Temp=(unsigned int)LCD_ReadData()<<8;//再读出高8位
+ 196   1        Temp|=(unsigned int)LCD_ReadData();//再读出低8位
+ 197   1        if(color==1) //如果写入颜色为1
+ 198   1          Temp|=LCDMaskTab[w];//在此处查表实现加速
+ 199   1        else         //如果写入颜色为0
+ 200   1          Temp&=~LCDMaskTab[w];//在此处查表实现加速
+ 201   1        LCD_WriteCmd(y+0x80);   //行地址
+ 202   1        LCD_WriteCmd(x+z);     //列地址
+ 203   1        LCD_WriteData(Temp>>8);//先写入高8位，再写入低8位
+ 204   1        LCD_WriteData(Temp&0x00ff);
+ 205   1        LCD_WriteCmd(0x30);
+ 206   1      }
+ 207          
+ 208          /******************************************
+ 209          从LCD指定坐标读取象素颜色值
+ 210          *******************************************/
+ 211          unsigned char LCD_ReadPixel(unsigned char x,unsigned char y)
+ 212          {
+ 213   1        unsigned char z,w;
+ 214   1        unsigned int Temp;
+ 215   1        if(x>=128||y>=64)
+ 216   1          return 0;
+ 217   1        w=15-x%16;//确定对这个字的第多少位进行操作
+ 218   1        x=x/16;//确定为一行上的第几字
+ 219   1      
+ 220   1        if(y<32) //如果为上页
+ 221   1          z=0x80;
+ 222   1        else     //否则如果为下页
+ 223   1          z=0x88;
+ 224   1      
+ 225   1        y=y%32;
+ 226   1        //EA=0;
+ 227   1        LCD_WriteCmd(0x36);
+ 228   1        LCD_WriteCmd(y+0x80);  //行地址
+ 229   1        LCD_WriteCmd(x+z);     //列地址 
+ 230   1        Temp=LCD_ReadData();   //先空读一次
+ 231   1        Temp=(unsigned int)LCD_ReadData()<<8;//再读出高8位
+ 232   1        Temp|=(unsigned int)LCD_ReadData();//再读出低8位
+ 233   1        if((Temp&&LCDMaskTab[w])==0)
+ 234   1          return 0;
+ 235   1        else
+ 236   1          return 1;
+ 237   1      }
+ 238          
+ 239          /***************************************
+ 240          向LCD指定位置画一条长度为length的指定颜色的水平线
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 5   
+
+ 241          ****************************************/
+ 242          void LCD_HoriLine(unsigned char x,unsigned char y,unsigned char length,unsigned char color)
+ 243          {
+ 244   1        unsigned char i;
+ 245   1        if(length==0)
+ 246   1          return;
+ 247   1        for(i=0;i<length;i++)
+ 248   1        {
+ 249   2          LCD_PutPixel(x+i,y,color);
+ 250   2        }
+ 251   1      }
+ 252          
+ 253          /***************************************
+ 254          向LCD指定位置画一条长度为length的指定颜色的垂直线
+ 255          ****************************************/
+ 256          void LCD_VertLine(unsigned char x,unsigned char y,unsigned char length,unsigned char color)
+ 257          {
+ 258   1        unsigned char i;
+ 259   1        if(length==0)
+ 260   1          return;
+ 261   1        for(i=0;i<length;i++)
+ 262   1        {
+ 263   2          LCD_PutPixel(x,y+i,color);
+ 264   2        }
+ 265   1      }
+ 266          /***************************************
+ 267          任意两点之间画线
+ 268          ****************************************/
+ 269          
+ 270          void GUI_Line(unsigned char x0,unsigned char y0,unsigned char x1,
+ 271                        unsigned char y1,unsigned char length,unsigned char color)
+ 272          {
+ 273   1        char dx;            //直线x轴差值变量
+ 274   1        char dy;            //直线y轴差值变量
+ 275   1        char dx_sym;        //x轴增长方向，为-1时减值方向，为1是增值方向
+ 276   1        char dy_sym;        //y轴增长方向，为-1时减值方向，为1时增值方向
+ 277   1        char dx_x2;         //dx*2值变量，用于加快运算速度
+ 278   1        char dy_x2;
+ 279   1        char di;            //决策变量
+ 280   1      
+ 281   1        if(x0==x1)          //横坐标相同画垂线
+ 282   1        {
+ 283   2           LCD_VertLine(x0,y0,length,color);
+ 284   2         return;
+ 285   2        }
+ 286   1        if(y0==y1)      //纵坐标相同画水平线
+ 287   1        {
+ 288   2           LCD_HoriLine(x0,y0,length,color);
+ 289   2         return;
+ 290   2        }
+ 291   1        dx=x1-x0;
+ 292   1        dy=y1-y0;  //求两点之间的差值
+ 293   1      /************判断增长方向************/
+ 294   1        if(dx>0) 
+ 295   1          dx_sym=1;                                          
+ 296   1        else
+ 297   1        {
+ 298   2          dx_sym=-1; 
+ 299   2        }
+ 300   1        if(dy>0) 
+ 301   1          dy_sym=1;
+ 302   1        else
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 6   
+
+ 303   1        {
+ 304   2          dy_sym=-1;    
+ 305   2        }
+ 306   1      
+ 307   1        //计算dx,dy绝对值
+ 308   1        dx=dx_sym*dx;
+ 309   1        dy=dy_sym*dy;
+ 310   1        //dx,dy的2倍
+ 311   1        dx_x2=dx*2;
+ 312   1        dy_x2=dy*2;
+ 313   1      
+ 314   1        if(dx>=dy)//对于dx>=dy，则以x轴为基准
+ 315   1        {
+ 316   2        di=dy_x2-dx;
+ 317   2        while(x0!=x1)
+ 318   2        {
+ 319   3           LCD_PutPixel(x0,y0,color);
+ 320   3           x0+=dx_sym;
+ 321   3           if(di<0)di+=dy_x2;
+ 322   3           else
+ 323   3           {
+ 324   4             di+=dy_x2-dx_x2;
+ 325   4             y0+=dy_sym;
+ 326   4           }
+ 327   3          }
+ 328   2        LCD_PutPixel(x0,y0,color);    //显示最后一个点
+ 329   2        }
+ 330   1        else                             //对于dx<dy,则以y轴为基准
+ 331   1        {
+ 332   2           di=dx_x2-dy;
+ 333   2         while(y0!=y1)
+ 334   2         {
+ 335   3           LCD_PutPixel(x0,y0,color);
+ 336   3           y0+=dy_sym;
+ 337   3           if(di<0)
+ 338   3             di+=dx_x2;
+ 339   3           else
+ 340   3            {
+ 341   4              di+=dx_x2-dy_x2;
+ 342   4              x0=dx_sym;
+ 343   4            }
+ 344   3         }
+ 345   2        LCD_PutPixel(x0,y0,color);
+ 346   2        }
+ 347   1      
+ 348   1      }
+ 349          
+ 350          /*******************************************
+ 351          向LCD指定左上角坐标和右下角坐标画一个指定颜色的矩形
+ 352          ********************************************/
+ 353          void GUI_Rectangle(unsigned char x0,unsigned char y0,unsigned char x1,unsigned char y1,unsigned char color
+             -)
+ 354          {
+ 355   1        unsigned char Temp;
+ 356   1        if(x0>x1)
+ 357   1        {
+ 358   2          Temp=x0;
+ 359   2          x0=x1;
+ 360   2          x1=Temp;
+ 361   2        } 
+ 362   1        if(y0>y1)
+ 363   1        {
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 7   
+
+ 364   2          Temp=y0;
+ 365   2          y0=y1;
+ 366   2          y1=Temp;
+ 367   2        }
+ 368   1        LCD_VertLine(x0,y0,y1-y0+1,color);
+ 369   1        LCD_VertLine(x1,y0,y1-y0+1,color);
+ 370   1        LCD_HoriLine(x0,y0,x1-x0+1,color);
+ 371   1        LCD_HoriLine(x0,y1,x1-x0+1,color);  
+ 372   1      }
+ 373          
+ 374          /*********
+ 375          * 名称：GUI_Circle_Plot(int x,int y,int xc,int yc,unsigned char color)
+ 376          * 功能：八分点画圆函数
+ 377          * 入口参数：x  指定线起点所在行的位置
+ 378          *           y    指定线起点所在列的位置
+ 379          *          color      显示颜色(对于黑白色LCM，为0时灭，为1时显示)
+ 380          * 出口参数：无
+ 381          ****************************************************************************/
+ 382          void GUI_Circle_Plot(int x,int y,int xc,int yc,unsigned char color)
+ 383          {
+ 384   1          LCD_PutPixel(xc+x,yc+y,color);
+ 385   1          LCD_PutPixel(xc+x,yc-y,color);
+ 386   1          LCD_PutPixel(xc-x,yc+y,color);
+ 387   1          LCD_PutPixel(xc-x,yc-y,color);
+ 388   1          LCD_PutPixel(xc+y,yc+x,color);
+ 389   1          LCD_PutPixel(xc+y,yc-x,color);
+ 390   1          LCD_PutPixel(xc-y,yc+x,color);
+ 391   1          LCD_PutPixel(xc-y,yc-x,color);
+ 392   1      }
+ 393          /****************************************************************************
+ 394          * 名称：GUI_Circle(int xc,int yc,int r,unsigned char color)
+ 395          * 功能：画圆
+ 396          * 入口参数：xc  圆心的行坐标
+ 397          *           yc    圆心的列坐标
+ 398          *           r  半径
+ 399          *          color      显示颜色(对于黑白色LCM，为0时灭，为1时显示)
+ 400          * 出口参数：无
+ 401          ****************************************************************************/
+ 402          void GUI_Circle(int xc,int yc,int r,unsigned char color)
+ 403          {
+ 404   1          int x,y,d;
+ 405   1          y = r;
+ 406   1          d = 3 - (r + r);
+ 407   1          x = 0;
+ 408   1          while(x <= y)
+ 409   1          {
+ 410   2              GUI_Circle_Plot(x,y,xc,yc,color);
+ 411   2              if(d < 0)
+ 412   2                  d += (x + x + x + x) + 6;
+ 413   2              else
+ 414   2              {
+ 415   3                  d+=((x - y) + (x - y) + (x - y) + (x - y)) + 10;
+ 416   3                  y = y - 1;
+ 417   3              }
+ 418   2              x = x + 1;
+ 419   2          }
+ 420   1      }
+ 421          
+ 422          /****************************************
+ 423          光标控制:写那个地址光标就到那。通过写地址来改变光标位置
+ 424          0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87
+ 425          0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97
+C51 COMPILER V9.52.0.0   DRILCD12864                                                       04/08/2018 19:49:02 PAGE 8   
+
+ 426          0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f
+ 427          0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f
+ 428          *****************************************/
+ 429          void LCD_Cursor(unsigned char X,unsigned char Y)
+ 430          {
+ 431   1      //  LCD_WriteCmd(0x02);  //地址归位
+ 432   1      //  LCD_WriteCmd(0x0f);   //开光标
+ 433   1        if(Y==0)
+ 434   1          LCD_WriteCmd(0x80+X);
+ 435   1        if(Y==1)
+ 436   1          LCD_WriteCmd(0x90+X);
+ 437   1        if(Y==2)
+ 438   1          LCD_WriteCmd(0x88+X);
+ 439   1        if(Y==3)
+ 440   1          LCD_WriteCmd(0x98+X);
+ 441   1      
+ 442   1      
+ 443   1      }
+ 444          /****************************************
+ 445          开机界面
+ 446          *****************************************/
+ 447          void LCD_Welcome(void)
+ 448          {
+ 449   1        GUI_Rectangle(0,0,127,63,1);
+ 450   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 451   1        GUI_Rectangle(4,4,123,60,1);
+ 452   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 453   1        GUI_Rectangle(8,8,119,56,1);
+ 454   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 455   1        GUI_Rectangle(12,12,115,52,1);
+ 456   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 457   1        GUI_Rectangle(16,16,111,48,1);
+ 458   1        _nop_();_nop_();_nop_();_nop_();_nop_();            
+ 459   1        GUI_Rectangle(20,20,107,44,1);
+ 460   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 461   1        GUI_Rectangle(24,24,103,40,1);
+ 462   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 463   1        GUI_Rectangle(28,28,99,36,1);
+ 464   1        _nop_();_nop_();_nop_();_nop_();_nop_();
+ 465   1        GUI_Rectangle(32,32,95,32,1);
+ 466   1        _nop_();_nop_();_nop_();_nop_();_nop_();  
+ 467   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1645    ----
+   CONSTANT SIZE    =     32    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      59
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
